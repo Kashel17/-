@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Lab15</title>
+		<script>
+			"use strict";
+
+			//функция считывания начальных условий
+			function reading (can, goal) {
+				let n = 1, i
+				for (i = 0; i < 3; i++)
+					can[i] = prompt('Введите емкость кувшина ' + n++)
+				n = 1
+				for (i = 0; i < 3; i++)
+					goal[i] = prompt('Введите ЖЕЛАЕМОЕ колличество воды в кувшине ' + n++);
+				for (i = 0; i < 3; i++) {
+
+					can[i] = Number(can[i])
+					goal[i] = Number(goal[i])
+				}	
+			}
+
+			//функция проверяющая корректность условий
+			function check (can, goal) {
+				if (can[0] >= can[2] || can[1] >= can[2] || can[0] + can[1] > can[2]) 
+					return -1
+				if (goal[0] >= can[0] || goal[1] >= can[1] || goal[2] > can[2])
+					return -1
+				if (goal[0] + goal[1] + goal[2] != can[2])
+					return -1
+				for (let i = 0; i < 3; i++){
+					if (can[i]%1 != 0 || goal[i]%1 != 0) 
+						return -1
+				}
+				if (goal[2] == can[2])
+					return 0
+				return 1
+			}
+
+			//функция выдающая номер строки переменной
+
+			function GetLineNumberOfElement (i, n) {
+				return Math.ceil (i / (n + 1));
+			}
+
+			//поиск числа по диагонали вверх
+
+			function GetExtremeVertexDiagonallyUp (i,n) {
+				if(GetLineNumberOfElement (i, n) == GetLineNumberOfElement((i - n), n)  || GetLineNumberOfElement ((i - n), n) < 1)
+					return (i);
+				else
+				return GetExtremeVertexDiagonallyUp ((i-n), n);
+			}
+
+			//поиск числа по диагонали вниз
+			function GetExtremeVertexDiagonallyDown (i, n, size) {
+				if(GetLineNumberOfElement (i, n) == GetLineNumberOfElement ((i + n), n)  || GetLineNumberOfElement ((i + n), n) > size / (n + 1))
+					return (i);
+				else
+				return GetExtremeVertexDiagonallyDown ((i + n), n, size);
+			}
+
+			//функция задающая матрицу смежности
+
+			function СreateAdjacencyMatrix (can, goal) {
+				let MatSmej = []
+				let i, j, k, l, s, size
+
+				size = (can[0] + 1) * (can[1] + 1)
+
+				for (i = 0; i <= size; i++) {
+					MatSmej[i] = [];
+					for (j = 1; j <= size; j++) {
+						MatSmej[i][j] = 0; 
+					}
+				}
+				if (can[0] != can[1]) {
+					for (i = 1; i <= size; i++) {
+						for (j = 1; j <= size; j++) {
+							for (k = 1; k <= can[0]+1; k++) {
+								for (l = 1; l <= can[1]+1; l++) {
+									if (l == can[1] + 1  && i <= size * k / (can[0] + 1) && i > size * (k - 1) / (can[0] + 1)) //смежность в право
+										MatSmej[i][(k - 1) * (can[1] + 1) + l] = 1;
+									if (l == 1 && i <= size * k / (can[0] + 1) && i > size * (k - 1) / (can[0] + 1)) //смежность влево
+										MatSmej[i][(k - 1) * (can[1] + 1) + l] = 1;
+									if (j <= size / (can[0] + 1) && (i - ((can[1] + 1) * k) == j)) // смежность вверх
+										MatSmej[i][j] = 1;
+									if (j > size * can[0] / (can[0] + 1) && (i + ((can[1] + 1) * k) == j)) //смежность вниз
+										MatSmej[i][j] = 1;
+									if (i > size / (can[0] + 1) && (i % (can[1] + 1) == 1 || i > size * can[0] / (can[0] + 1))) //смежность по диагонали вверх
+										MatSmej[i][GetExtremeVertexDiagonallyUp(i, can[1])] = 1;
+									if (i <= size * can[0] / (can[0] + 1) && (i % (can[1] + 1) == 0 || i <= size / (can[0] + 1))) //смежность по диагонали вниз
+										MatSmej[i][GetExtremeVertexDiagonallyDown(i, can[1], size)] = 1;
+								}
+							}	
+						}	
+					}
+					for (i = 1; i <= size; i++)
+						for (j = 1; j <= size; j++)
+							if (i == j)	MatSmej[i][j] = 0;	
+				} else {
+					//смежность вправо
+					MatSmej[1][size / (can[0] + 1)] = 1;
+					MatSmej[size - can[0]][size] = 1;
+					//смежность влево
+					MatSmej[size / (can[0] + 1)][1] = 1;
+					MatSmej[size][size - can[0]] = 1;
+					//смежность вверх
+					MatSmej[size - can[0]][1] = 1;
+					MatSmej[size][can[0] + 1] = 1;
+					//смежность вниз
+					MatSmej[1][size - can[0]] = 1;
+					MatSmej[can[0] + 1][size] = 1;
+					//смежность по диагонали
+					MatSmej[size - can[0]][can[0] + 1] = 1;
+					MatSmej[can[0] + 1][size - can[0]] = 1;
+				}
+				return MatSmej
+			}
+
+			//функция поиска минимального числа переливаний
+			function DijkstraAlgorithm (Matrica, can, goal) {		
+				let distance = []
+				let j, index, i, u, F, size
+				let visited = []
+				F = goal[0] * (can[1] + 1) + goal[1] + 1
+				size = (can[0] + 1) * (can[1] + 1)
+				for (i = 1; i <= size; i++){
+					distance[i] = 1/0
+					visited[i] = false;
+				}
+				distance[1] =  0
+
+				for (j = 1; j < size; j++){
+					let min = 1/0
+
+					for (i = 1; i <= size; i++)
+						if (!visited[i] && distance[i] <= min){
+							min = distance[i];
+							index = i
+						}
+
+					u = index
+					visited[u] = true
+					for (i = 1; i <= size; i++)
+						if (!visited[i] && Matrica[u][i] && distance[u] != 1/0 && (distance[u] + Matrica[u][i] < distance[i]))
+							distance[i] = distance[u] + Matrica[u][i]
+				}
+				if(distance[F] != 1/0) return distance[F]
+					else return -1
+			}
+		
+			//функция выдающая ответ в консоль
+			function writing (Flag) {
+				console.log(can)
+				console.log(goal)
+				switch (Flag) {
+					case (1):
+					let Res = DijkstraAlgorithm(СreateAdjacencyMatrix(can, goal),can, goal)
+					if(Res == -1) console.log("Нет решения")
+						else console.log("Минимальное колличество переливаний = " + Res)
+					break;
+					case (0):
+					console.log("Минимальное колличество переливаний = 0")
+					break;
+					case (-1):
+					console.log("Не корректные данные")
+					break;
+				}
+			}
+
+			let can = []
+			let goal = []
+			reading(can, goal)
+			writing(check(can, goal))
+			
+		</script>
+	</head>
+	<body>
+		Разработка скрипта «Головоломка с кувшином для воды».
+		Для набора из 3 кувшинов с водой емкостью A, B и C литров найдите минимальное количество операций, выполняемых перед тем, как каждый кувшин наберет x, y и z литров. Только кувшин С может полностью заполняться. Операция может быть любой из следующих: кувшин опорожняется, кувшин наполняется, или вода переливается из одного кувшина в другой, пока один из кувшинов не станет пустым или полным. Например, кувшины A, B и C вместимостью 3, 5 и 8 литров, где кувшины A и B вначале пусты, а C имеет полных 8 литров, требуют 2 операций для достижения состояния 0, 3 и 5 литров в кувшины. Создайте функцию, которая, учитывая массив емкостей кувшина [A, B, C] и массив состояний цели [x, y, z], возвращает минимальное количество операций, необходимых для достижения состояния цели. Если введенные данные недействительны или решения нет, верните «Нет решения». Количество воды в кувшине никогда не может превышать вместимость этого кувшина. Общее количество литров в целевом состоянии должно быть равно вместимости кувшина C.
+	</body>
+</html>
